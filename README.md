@@ -10,64 +10,10 @@
   </p>
 
   <p>
-    <strong>Palletrone</strong> is a compound of <em>Pallet</em> and <em>Drone</em>, designed as a fully-actuated multirotor platform.
-    It enables stable cargo transportation without undesired attitude changes, overcoming the limitations of underactuated multirotors.
+ <strong>Thrust-Powered-Manipulation</strong> with Palletrone
   </p>
 </section>
 
-<h2>System Configuration</h2>
-
-<section>
-  <div class="figure">
-    <img src="https://github.com/user-attachments/assets/91fcdd08-1d03-40fe-806c-e38a8c415a63" alt="Image"  width="600">
-
-  </div>
-
-  <h3>Parameters</h3>
-  <table>
-    <thead>
-      <tr><th>Symbol</th><th>Variable</th><th>Description</th></tr>
-    </thead>
-    <tbody>
-      <tr><td><strong>m</strong></td><td><code>m</code></td><td><strong>Palletrone mass</strong></td></tr>
-      <tr><td><strong>ζ</strong></td><td><code>zeta</code></td><td>Force-to-yaw torque transform ratio</td></tr>
-      <tr><td><strong>r</strong></td><td><code>r</code></td><td><strong>Moment arm</strong> (Actual hardware arm length = √2·<em>r</em>)</td></tr>
-      <tr><td><strong>r<sub>z</sub></strong></td><td><code>r_z</code></td><td><strong>z-axis distance</strong> between IMU (center) and thruster</td></tr>
-    </tbody>
-  </table>
-</section>
-
-
-
-<h2>Environment Setup</h2>
-
-<section>
-  <p class="muted">
-    Tested on <strong>Ubuntu 22.04</strong> with <strong>ROS2 Humble</strong> and <strong>MuJoCo</strong>.
-  </p>
-
-  <h3>1) ROS2 Humble Installation</h3>
-  <p>Official guide:
-    <a href="https://docs.ros.org/en/humble/Installation.html" target="_blank" rel="noopener">ROS2 Humble Installation</a>
-  </p>
-  <pre><code># Create workspace / Build and source
-mkdir -p ~/palletrone_ws/src
-cd ~/palletrone_ws 
-colcon build --symlink-install
-source install/setup.bash
-</code></pre>
-
-  <h3>2) MuJoCo Installation</h3>
-  <p>Official GitHub:
-    <a href="https://github.com/google-deepmind/mujoco" target="_blank" rel="noopener">https://github.com/google-deepmind/mujoco</a>
-  </p>
-  <pre><code># System dependencies
-sudo apt update
-sudo apt install libglfw3 libglfw3-dev libglew-dev
-python -m pip install mujoco
-python -m mujoco.viewer
-</code></pre>
-</section>
 
 
 
@@ -86,32 +32,63 @@ ros2 launch palletrone_cmd pt_launch.py
 
 
 <section>
-  <pre><code>Sim_palletrone/
+  <pre><code>Tpam_simulator/
 └── src/
-    ├── palletrone_interfaces/          # ROS2 message definitions
-    │   └── msg/
-    │       ├── Cmd.msg                 # Desired position/attitude command (units below)
-    │       ├── Input.msg               # Control input: motor speeds & servo angles
-    │       ├── PalletroneState.msg     # Simulator state (Z-up)
-    │       └── Wrench.msg              # Body-frame forces & torques
-    │
-    ├── palletrone_cmd/                 # Command publisher
-    │   ├── launch/
-    │   │   └── pt_launch.py            # Launch plant + controllers + cmd
-    │   └── src/
-    │       └── position_cmd.cpp        # Publishes 3D desired position
-    │
-    ├── palletrone_controller/          # Controllers
-    │   └── src/
-    │       ├── allocator_controller.cpp# Control allocation (ref1-based)
-    │       └── wrench_controller.cpp   # Position/attitude PID → Wrench
-    │
-    └── plant/                          # MuJoCo plant
-        ├── plant/
-        │   └── plant.py                # Dynamics integration + state publishing
-        └── xml/                        # Model & scene (used by the plant)
-            ├── Palletrone.xml
-            └── scene.xml
+	├── MUJOCO_LOG.TXT
+	├── palletrone_cmd
+	│   ├── CMakeLists.txt
+	│   ├── launch
+	│   │   └── pt_launch.py
+	│   ├── package.xml
+	│   ├── scripts
+	│   │   └── teleop_position_node.py
+	│   └── src
+	│       └── position_cmd.cpp
+	├── palletrone_controller
+	│   ├── CMakeLists.txt
+	│   ├── package.xml
+	│   └── src
+	│       ├── allocator_controller.cpp
+	│       ├── torque_dob.cpp
+	│       └── wrench_controller.cpp
+	├── palletrone_interfaces
+	│   ├── CMakeLists.txt
+	│   ├── msg
+	│   │   ├── ArmCmd.msg
+	│   │   ├── Cmd.msg
+	│   │   ├── Input.msg
+	│   │   ├── PalletroneState.msg
+	│   │   └── Wrench.msg
+	│   └── package.xml
+	└── plant
+	    ├── package.xml
+	    ├── plant
+	    │   ├── __init__.py
+	    │   └── plant.py
+	    ├── resource
+	    │   └── plant
+	    ├── setup.cfg
+	    ├── setup.py
+	    └── xml
+		├── arm_assets
+		│   ├── 6prop.stl
+		│   ├── case_bearing.stl
+		│   ├── LINK1_honebracket_540_under.stl
+		│   ├── LINK2.stl
+		│   ├── LINK3_xm430_to_Wrist.stl
+		│   ├── MujocoLink2.stl
+		│   ├── Wrist_Link.stl
+		│   ├── XC_330_bracket.stl
+		│   ├── XC_330_Parts.stl
+		│   ├── XC_330_servo.stl
+		│   ├── XL540.stl
+		│   └── XM,H-430_idler.stl
+		├── BODY.stl
+		├── Palletrone.xml
+		├── PROP.stl
+		├── scene.xml
+		└── STLchanger.py
+
 </code></pre>
 </section>
 
