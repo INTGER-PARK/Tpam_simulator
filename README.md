@@ -4,8 +4,6 @@
 
 <h1>Tpam Simulator</h1>
 
-<img src="./images/robot_arm.png" width="500">
-
 <section>
   <p>
     This project is developed by <a href="https://mrl.seoultech.ac.kr/index.do" target="_blank" rel="noopener">SeoulTech MRL</a>
@@ -16,7 +14,7 @@
   </p>
 </section>
 
-<img src="./images/robot_arm.png" width="500">
+<img src="./images/T-pam.png" width="500">
 
 <h2>Node Structure</h2>
 
