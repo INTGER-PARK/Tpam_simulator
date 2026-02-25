@@ -1,0 +1,617 @@
+<mujoco model="Palletrone">
+  <compiler angle="radian" coordinate="local" inertiafromgeom="auto"/>
+  <option timestep="0.002" gravity="0 0 -9.81"/>
+
+  <default>
+    <geom friction="0.8 0.1 0.1" density="280"/>
+    <joint type="hinge" damping="0.1" stiffness="0"/>
+  </default>
+
+  <asset>
+    <!-- Drone meshes -->
+    <mesh name="drone_body_mesh" file="BODY.stl"/>
+    <mesh name="drone_servo_prop_mesh" file="PROP.stl"/>
+
+    <!-- Arm thruster prop -->
+    <mesh name="sub_prop_mesh" file="arm_assets/6prop.stl" scale="0.001 0.001 0.001"/>
+
+    <!-- Arm meshes -->
+    <mesh name="case_bearing_mesh" file="arm_assets/case_bearing.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="LINK1_mesh" file="arm_assets/LINK1_honebracket_540_under.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="servo2_mesh" file="arm_assets/XL540.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="LINK2_mesh" file="arm_assets/MujocoLink2.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="servo3_mesh" file="arm_assets/XM,H-430_idler.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="LINK3_mesh" file="arm_assets/LINK3_xm430_to_Wrist.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="LINK4_mesh" file="arm_assets/Wrist_Link.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="XC330_mesh" file="arm_assets/XC_330_servo.stl" scale="0.001 0.001 0.001"/>
+    <mesh name="XC330bracket_mesh" file="arm_assets/XC_330_bracket.stl" scale="0.001 0.001 0.001"/>
+  </asset>
+
+  <worldbody>
+    <body name="drone_base" pos="0 0 0.145">
+      <freejoint name="drone_root"/>
+
+      <inertial
+        pos="0 0 0"
+        quat="1 0 0 0"
+        mass="4.0"
+        diaginertia="0.360091 0.360702 0.660702"/>
+
+      <geom
+        name="drone_base_vis"
+        type="mesh"
+        mesh="drone_body_mesh"
+        rgba="0.5 0.5 0.5 1"
+        contype="1"
+        conaffinity="1"
+        group="1"/>
+
+      <site name="drone_imu" pos="0 0 0" quat="1 0 0 0"/>
+
+      <!-- ========================================================= -->
+      <!-- Drone servo/prop 1 -->
+      <!-- ========================================================= -->
+      <body name="drone_servo1" pos="0.148492 0.148492 0.145" quat="0.9238795 0 0 0.3826834">
+        <joint
+          name="drone_j_servo1"
+          type="hinge"
+          axis="1 0 0"
+          pos="0 0 -0.075"
+          range="-0.51 0.51"
+          damping="0.1"/>
+
+        <body name="drone_prop1_body" pos="0 0 -0.075">
+          <geom
+            name="drone_servo1_vis"
+            type="mesh"
+            mesh="drone_servo_prop_mesh"
+            mass="0.2"
+            quat="0.7071068 0 0 0.7071068"
+            rgba="0.55 0.2 0.2 1"
+            contype="0"
+            conaffinity="0"
+            group="1"/>
+
+          <site name="drone_prop1_site" pos="0 0 0" size="0.004" type="sphere"/>
+        </body>
+      </body>
+
+      <!-- ========================================================= -->
+      <!-- Drone servo/prop 2 -->
+      <!-- ========================================================= -->
+      <body name="drone_servo2" pos="-0.148492 0.148492 0.145" quat="0.3826834 0 0 0.9238795">
+        <joint
+          name="drone_j_servo2"
+          type="hinge"
+          axis="1 0 0"
+          pos="0 0 -0.075"
+          range="-0.51 0.51"
+          damping="0.1"/>
+
+        <body name="drone_prop2_body" pos="0 0 -0.075">
+          <geom
+            name="drone_servo2_vis"
+            type="mesh"
+            mesh="drone_servo_prop_mesh"
+            mass="0.2"
+            quat="0.7071068 0 0 0.7071068"
+            rgba="0.55 0.2 0.2 1"
+            contype="0"
+            conaffinity="0"
+            group="1"/>
+
+          <site name="drone_prop2_site" pos="0 0 0" size="0.004" type="sphere"/>
+        </body>
+      </body>
+
+      <!-- ========================================================= -->
+      <!-- Drone servo/prop 3 -->
+      <!-- ========================================================= -->
+      <body name="drone_servo3" pos="-0.148492 -0.148492 0.145" quat="0.3826834 0 0 -0.9238795">
+        <joint
+          name="drone_j_servo3"
+          type="hinge"
+          axis="1 0 0"
+          pos="0 0 -0.075"
+          range="-0.51 0.51"
+          damping="0.1"/>
+
+        <body name="drone_prop3_body" pos="0 0 -0.075">
+          <geom
+            name="drone_servo3_vis"
+            type="mesh"
+            mesh="drone_servo_prop_mesh"
+            mass="0.2"
+            quat="0.7071068 0 0 0.7071068"
+            rgba="0.55 0.2 0.2 1"
+            contype="0"
+            conaffinity="0"
+            group="1"/>
+
+          <site name="drone_prop3_site" pos="0 0 0" size="0.004" type="sphere"/>
+        </body>
+      </body>
+
+      <!-- ========================================================= -->
+      <!-- Drone servo/prop 4 -->
+      <!-- ========================================================= -->
+      <body name="drone_servo4" pos="0.148492 -0.148492 0.145" quat="0.9238795 0 0 -0.3826834">
+        <joint
+          name="drone_j_servo4"
+          type="hinge"
+          axis="1 0 0"
+          pos="0 0 -0.075"
+          range="-0.51 0.51"
+          damping="0.1"/>
+
+        <body name="drone_prop4_body" pos="0 0 -0.075">
+          <geom
+            name="drone_servo4_vis"
+            type="mesh"
+            mesh="drone_servo_prop_mesh"
+            mass="0.2"
+            quat="0.7071068 0 0 0.7071068"
+            rgba="0.55 0.2 0.2 1"
+            contype="0"
+            conaffinity="0"
+            group="1"/>
+
+          <site name="drone_prop4_site" pos="0 0 0" size="0.004" type="sphere"/>
+        </body>
+      </body>
+
+      <!-- ========================================================= -->
+      <!-- Arm base -->
+      <!-- ========================================================= -->
+      <body name="base" pos="0.26 0.26 0.15" euler="0 0 -2.355">
+        <body name="servo1" pos="0 0 0">
+          <inertial
+            pos="0 0 0"
+            mass="0.225"
+            fullinertia="1.385e-4 1.545e-4 1.662e-4 21.436e-9 -3713.672e-9 8.985e-9"/>
+          <!-- Inertial Ixx Iyy Izz Ixy Ixz Iyz -->
+
+          <geom name="case_col" type="box" pos="0 0 0.015" size="0.03 0.03 0.015" rgba="0 1 0 0"/>
+          <geom name="case_vis" type="mesh" mesh="case_bearing_mesh" rgba="1 1 1 1" contype="0" conaffinity="0" group="1"/>
+
+          <!-- ================= Joint 1 ================= -->
+          <body name="j1" pos="0 0 0.02">
+            <joint name="joint1" type="hinge" axis="0 0 1" limited="true" range="-1.57 1.57"/>
+
+            <inertial
+              pos="0 0 0"
+              mass="0.225"
+              fullinertia="5532.41e-9 8426.42e-9 8650.927e-9 -472.96e-9 3.397e-18 2.038e-16"/>
+            <!-- Inertial Ixx Iyy Izz Ixy Ixz Iyz -->
+
+            <geom
+              name="link1_col"
+              type="cylinder"
+              fromto="0 0 -0.01  0 0 0.03"
+              size="0.018"
+              mass="0"
+              rgba="0 1 0 0.1"/>
+
+            <geom
+              name="link1_vis"
+              type="mesh"
+              mesh="LINK1_mesh"
+              pos="0 0 -0.02"
+              euler="0 0 1.570796"
+              rgba="1 1 1 1"
+              contype="0"
+              conaffinity="0"
+              group="1"/>
+
+            <!-- (B) 서보(=servo2) : 링크에 고정된 별도 body (joint 없음) -->
+            <body name="servo2_body" pos="0 0 0.065">
+              <!-- 여기 값은 “서보 단독” CoM/관성으로 넣기 -->
+              <inertial
+                pos="0 0 0"
+                mass="0.165"
+                fullinertia="7.32e-5 3.92e-5 6.08e-5 -1.83e-7 -2.018e-7 -8.58e-6"/>
+              <!-- Inertial Ixx Iyy Izz Ixy Ixz Iyz 나머진 알아서 입력됌 -->
+
+              <geom
+                name="servo2_col"
+                type="box"
+                pos="0 0 0"
+                size="0.018 0.016 0.03"
+                mass="0"
+                rgba="0 1 0 0.1"/>
+
+              <geom
+                name="servo2_vis"
+                type="mesh"
+                mesh="servo2_mesh"
+                pos="0.0 0.069 0"
+                euler="0 0 0"
+                rgba="1 1 1 0.7"
+                contype="0"
+                conaffinity="0"
+                group="1"/>
+
+              <!-- ================= Joint 2 ================= -->
+              <body name="link2" pos="0 0 0.03">
+                <inertial
+                  pos="0 0 0"
+                  mass="0.096"
+                  fullinertia="9.19e-3 9.186e-3 18.012e-6 -8.24e-16 -0.064e-9 4.735e-6"/>
+                <!-- Inertial Ixx Iyy Izz Ixy Ixz Iyz 나머진 알아서 입력됌 -->
+
+                <joint name="joint2" type="hinge" axis="0 1 0" limited="true" range="-1.57 1.57"/>
+
+                <geom
+                  name="link2_capsule"
+                  type="capsule"
+                  fromto="0 0 0  0 0 0.68"
+                  size="0.005"
+                  density="280"
+                  rgba="0.9 0.8 0.1 0.1"/>
+
+                <geom
+                  name="link2_vis"
+                  type="mesh"
+                  mesh="LINK2_mesh"
+                  pos="0 0.07 -0.03"
+                  euler="0 0 0"
+                  rgba="1 1 1 1"
+                  contype="0"
+                  conaffinity="0"
+                  group="1"/>
+
+                <body name="servo3_body" pos="0 0 0.742">
+                  <geom
+                    name="servo3_col"
+                    type="box"
+                    pos="0 0 0"
+                    size="0.014 0.0169 0.02"
+                    rgba="0.5 0.2 1 0.5"
+                    contype="0"
+                    conaffinity="0"/>
+
+                  <geom
+                    name="servo3_vis"
+                    type="mesh"
+                    mesh="servo3_mesh"
+                    pos="0 0 0.015"
+                    euler="1.570796 0 0.05"
+                    rgba="1 1 1 1"
+                    contype="0"
+                    conaffinity="0"
+                    group="1"/>
+
+                  <!-- ================= Joint 3 ================= -->
+                  <body name="link3" pos="0 0 0.01">
+                    <inertial
+                      pos="0 0 0"
+                      mass="0.167"
+                      fullinertia="1273e-6 7913e-6 6693e-6 -19.99e-6 2830e-6 6.944e-6"/>
+                    <!-- Inertial Ixx Iyy Izz Ixy Ixz Iyz 나머진 알아서 입력됌 -->
+
+                    <joint name="joint3" type="hinge" axis="0 1 0" limited="true" range="-1.57 1.57"/>
+
+                    <geom
+                      name="link3_capsule"
+                      type="capsule"
+                      fromto="0 0 0  0 0 0.68"
+                      size="0.005"
+                      density="280"
+                      rgba="0.9 0.8 0.1 0.2"/>
+
+                    <geom
+                      name="link3_vis"
+                      type="mesh"
+                      mesh="LINK3_mesh"
+                      pos="0.006 0 0.54"
+                      euler="0 0 -1.570796"
+                      rgba="1 1 1 1"
+                      contype="0"
+                      conaffinity="0"
+                      group="1"/>
+
+			<body name="ee_body" pos="0 0 0.68">
+			  <!-- joint가 없으므로 link3에 고정됨 -->
+			  <geom
+			    name="End-effector"
+			    type="sphere"
+			    pos="0 0 0"
+			    size="0.04"
+			    mass="0.20"
+			    rgba="0.2 0.2 1 1"/>
+
+			  <site
+			    name="ee_site"
+			    pos="0 0 0"
+			    size="0.01"
+			    type="sphere"
+			    rgba="0 1 0 0"/>
+			</body>
+
+                    <body name="link4" pos="-0.035 0 0.55">
+                      <geom
+                        name="link4_capsule"
+                        type="capsule"
+                        fromto="0 -0.15 0  0 0.15 0"
+                        size="0.005"
+                        density="280"
+                        rgba="0.9 0.8 0.1 0.2"/>
+
+                      <geom
+                        name="link4_vis"
+                        type="mesh"
+                        mesh="LINK4_mesh"
+                        pos="0 0 0"
+                        euler="0 0 -1.570796"
+                        rgba="1 1 1 1"
+                        contype="0"
+                        conaffinity="0"
+                        group="1"/>
+
+                      <!-- LEFT: link4에 고정된 바디 -->
+                      <body name="thruster_left_body" pos="0 0.11 0">
+                        <geom
+                          name="thruster_left_fixed_box"
+                          type="box"
+                          pos="0.014 0 0"
+                          size="0.025 0.013 0.013"
+                          rgba="0 0.8 1 0.1"
+                          contype="0"
+                          conaffinity="0"/>
+
+                        <geom
+                          name="XC330_left_vis"
+                          type="mesh"
+                          mesh="XC330_mesh"
+                          pos="0.025 0.008 0"
+                          euler="-1.570796 0 -1.570796"
+                          rgba="1 1 1 0.5"
+                          contype="0"
+                          conaffinity="0"
+                          density="0"
+                          group="1"/>
+
+                        <!-- 회전하는 바디(hinge) -->
+                        <body name="servo4_left" pos="0.035 0.000 0">
+                          <!-- joint는 최소 inertial 부여 -->
+                          <inertial pos="0 0 0" mass="0.02" diaginertia="1e-5 1e-5 1e-5"/>
+
+                          <joint
+                            name="joint5_left"
+                            type="hinge"
+                            axis="0 1 0"
+                            limited="true"
+                            range="-1.57 1.57"
+                            damping="0.1"/>
+
+                          <body name="prop_left_body" pos="0 0 0">
+                            <site name="prop_left_site" pos="0.03 0 0" size="0.005" rgba="1 1 0 0"/>
+
+                            <geom
+                              name="XC330bracket_left_vis"
+                              type="mesh"
+                              mesh="XC330bracket_mesh"
+                              euler="-1.570796 0 -1.570796"
+                              pos="-0.01 0.007 0"
+                              rgba="1 0 0 1"
+                              contype="0"
+                              conaffinity="0"
+                              density="0"
+                              group="1"/>
+
+                            <geom
+                              name="prop_left_vis"
+                              type="mesh"
+                              mesh="sub_prop_mesh"
+                              euler="0 1.570796 0"
+                              pos="0.03 -0.07 0.018"
+                              rgba="1 0 0 1"
+                              contype="0"
+                              conaffinity="0"
+                              density="0"
+                              group="1"/>
+                          </body>
+                        </body>
+                      </body>
+
+                      <!-- RIGHT: link4에 고정된 바디 -->
+                      <body name="thruster_right_body" pos="0 -0.11 0">
+                        <geom
+                          name="thruster_right_fixed_box"
+                          type="box"
+                          pos="0.014 0 0"
+                          size="0.025 0.013 0.013"
+                          rgba="0 0.8 1 0.2"
+                          contype="0"
+                          conaffinity="0"/>
+
+                        <geom
+                          name="XC330_right_vis"
+                          type="mesh"
+                          mesh="XC330_mesh"
+                          pos="0.025 0.008 0"
+                          euler="-1.570796 0 -1.570796"
+                          rgba="1 1 1 0.4"
+                          contype="0"
+                          conaffinity="0"
+                          density="0"
+                          group="1"/>
+
+                        <body name="servo4_right" pos="0.035 0.000 0">
+                          <inertial pos="0 0 0" mass="0.02" diaginertia="1e-5 1e-5 1e-5"/>
+
+                          <joint
+                            name="joint5_right"
+                            type="hinge"
+                            axis="0 1 0"
+                            limited="true"
+                            range="-1.57 1.57"
+                            damping="0.1"/>
+
+                          <body name="prop_right_body" pos="0 0 0 ">
+                            <site name="prop_right_site" pos="0.03  0 0" size="0.005" rgba="1 1 0 0"/>
+
+                            <geom
+                              name="XC330bracket_right_vis"
+                              type="mesh"
+                              mesh="XC330bracket_mesh"
+                              euler="-1.570796 0 -1.570796"
+                              pos="-0.01 0.007 0"
+                              rgba="1 0 0 1"
+                              contype="0"
+                              conaffinity="0"
+                              density="0"
+                              group="1"/>
+
+                            <geom
+                              name="prop_right_vis"
+                              type="mesh"
+                              mesh="sub_prop_mesh"
+                              euler="0 1.570796 0"
+                              pos="0.03 -0.065 0.018"
+                              rgba="1 0 0 1"
+                              contype="0"
+                              conaffinity="0"
+                              density="0"
+                              group="1"/>
+                          </body>
+                        </body>
+                      </body>
+
+                    </body> <!-- link4 -->
+                  </body>   <!-- link3 -->
+                </body>     <!-- servo3_body -->
+              </body>       <!-- link2 -->
+            </body>         <!-- servo2_body -->
+          </body>           <!-- j1 -->
+        </body>             <!-- servo1 -->
+      </body>               <!-- base -->
+
+    </body>                 <!-- drone_base -->
+  </worldbody>
+
+  <contact>
+    <exclude body1="link3" body2="link4"/>
+    <exclude body1="link4" body2="thruster_left_body"/>
+    <exclude body1="link4" body2="thruster_right_body"/>
+  </contact>
+
+  <actuator>
+    <position
+      name="pos_joint1"
+      joint="joint1"
+      kp="10.0"
+      kv="0.2"
+      ctrllimited="true"
+      ctrlrange="-1.57 1.57"
+      forcelimited="true"
+      forcerange="-4.1 4.1"/>
+
+    <position
+      name="pos_joint2"
+      joint="joint2"
+      kp="60.0"
+      kv="0.3"
+      ctrllimited="true"
+      ctrlrange="-1.57 1.57"
+      forcelimited="true"
+      forcerange="-10.6 10.6"/>
+
+    <position
+      name="pos_joint3"
+      joint="joint3"
+      kp="60.0"
+      kv="0.2"
+      ctrllimited="true"
+      ctrlrange="-1.57 1.57"
+      forcelimited="true"
+      forcerange="-4.1 4.1"/>
+
+    <position
+      name="pos_joint5_L"
+      joint="joint5_left"
+      kp="3.0"
+      kv="0.05"
+      ctrllimited="true"
+      ctrlrange="-1.57 1.57"
+      forcelimited="true"
+      forcerange="-0.9 0.9"/>
+
+    <position
+      name="pos_joint5_R"
+      joint="joint5_right"
+      kp="3.0"
+      kv="0.05"
+      ctrllimited="true"
+      ctrlrange="-1.57 1.57"
+      forcelimited="true"
+      forcerange="-0.9 0.9"/>
+
+    <!-- 주의: 표준 MuJoCo에선 motor는 보통 joint/tendon을 대상으로 함.
+        site에 힘 주는 목적으로 쓰는 거면 general을 쓰는 경우가 많다.
+         (네 환경에서 motor site가 이미 동작했다면 그대로 둬도 됨) -->
+    <general
+      name="thruster_left"
+      site="prop_left_site"
+      gear="1 0 0 0 0 0"
+      ctrllimited="true"
+      ctrlrange="0 15"/>
+
+    <general
+      name="thruster_right"
+      site="prop_right_site"
+      gear="1 0 0 0 0 0"
+      ctrllimited="true"
+      ctrlrange="0 15"/>
+
+    <general name="drone_BLDC1" site="drone_prop1_site" gear="0 0 1 0 0  0.02" ctrlrange="0 50"/>
+    <general name="drone_BLDC2" site="drone_prop2_site" gear="0 0 1 0 0 -0.02" ctrlrange="0 50"/>
+    <general name="drone_BLDC3" site="drone_prop3_site" gear="0 0 1 0 0  0.02" ctrlrange="0 50"/>
+    <general name="drone_BLDC4" site="drone_prop4_site" gear="0 0 1 0 0 -0.02" ctrlrange="0 50"/>
+
+    <position name="drone_servo1_pos" joint="drone_j_servo1" kp="50" kv="0.02" ctrlrange="-0.51 0.51"/>
+    <position name="drone_servo2_pos" joint="drone_j_servo2" kp="50" kv="0.02" ctrlrange="-0.51 0.51"/>
+    <position name="drone_servo3_pos" joint="drone_j_servo3" kp="50" kv="0.02" ctrlrange="-0.51 0.51"/>
+    <position name="drone_servo4_pos" joint="drone_j_servo4" kp="50" kv="0.02" ctrlrange="-0.51 0.51"/>
+  </actuator>
+
+  <sensor>
+  <!--framepos/framelinvel은 world frame 기준값-->
+    <jointpos name="q1_sensor" joint="joint1"/>
+    <jointpos name="q2_sensor" joint="joint2"/>
+    <jointpos name="q3_sensor" joint="joint3"/>
+    <jointpos name="q5_L_sensor" joint="joint5_left"/>
+    <jointpos name="q5_R_sensor" joint="joint5_right"/>
+
+    <framequat name="link3_quat" objtype="body" objname="link3"/>
+    <framequat name="link4_quat" objtype="body" objname="link4"/>
+
+    <framequat name="drone_body_quat" objtype="site" objname="drone_imu"/>
+    <gyro name="drone_body_gyro" site="drone_imu"/>
+
+    <framepos name="drone_base_pos" objtype="body" objname="drone_base"/>
+    <framelinvel name="drone_base_linvel" objtype="body" objname="drone_base"/>
+
+    <jointpos name="drone_servo1_angle" joint="drone_j_servo1"/>
+    <jointpos name="drone_servo2_angle" joint="drone_j_servo2"/>
+    <jointpos name="drone_servo3_angle" joint="drone_j_servo3"/>
+    <jointpos name="drone_servo4_angle" joint="drone_j_servo4"/>
+
+    <framepos  name="ee_pos"    objtype="site" objname="ee_site"/>
+    <framequat name="ee_quat"   objtype="site" objname="ee_site"/>
+    <framelinvel name="ee_linvel" objtype="site" objname="ee_site"/>
+    <frameangvel name="ee_angvel" objtype="site" objname="ee_site"/> 
+
+    <jointvel name="dq1_sensor" joint="joint1"/>
+    <jointvel name="dq2_sensor" joint="joint2"/>
+    <jointvel name="dq3_sensor" joint="joint3"/>
+
+    <jointvel name="d_servo1" joint="drone_j_servo1"/>
+    <jointvel name="d_servo2" joint="drone_j_servo2"/>
+    <jointvel name="d_servo3" joint="drone_j_servo3"/>
+    <jointvel name="d_servo4" joint="drone_j_servo4"/>
+
+    <jointvel name="dq5_L_sensor" joint="joint5_left"/>
+    <jointvel name="dq5_R_sensor" joint="joint5_right"/>
+  </sensor>
+</mujoco>

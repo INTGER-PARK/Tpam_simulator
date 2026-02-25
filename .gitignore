@@ -1,0 +1,15 @@
+# Python 캐시 및 가상환경
+__pycache__/
+*.py[cod]
+venv/
+
+# C/C++ 오브젝트 파일 및 빌드 디렉토리
+*.o
+*.out
+*.so
+build/
+install/
+log/
+
+# IDE 설정 파일 (VS Code 등)
+.vscode/
