@@ -1,7 +1,7 @@
 #include <chrono>
 #include <algorithm>
 #include <rclcpp/rclcpp.hpp>
-#include <palletrone_interfaces/msg/cmd.hpp>
+#include <tpam_interfaces/msg/cmd.hpp>
 
 static constexpr double X_CMD = 0.0;
 static constexpr double Y_CMD = 0.0;
@@ -13,7 +13,7 @@ class PositionCmd : public rclcpp::Node {
 public:
   PositionCmd() : rclcpp::Node("position_cmd")
   {
-    using palletrone_interfaces::msg::Cmd;
+    using tpam_interfaces::msg::Cmd;
 
     pub_cmd_ = this->create_publisher<Cmd>("/cmd", 10);
 
@@ -30,7 +30,7 @@ public:
 private:
   void onTick()
   {
-    using palletrone_interfaces::msg::Cmd;
+    using tpam_interfaces::msg::Cmd;
 
     auto now = std::chrono::steady_clock::now();
     double t = std::chrono::duration<double>(now - t0_).count();
@@ -48,7 +48,7 @@ private:
     pub_cmd_->publish(msg);
   }
 
-  rclcpp::Publisher<palletrone_interfaces::msg::Cmd>::SharedPtr pub_cmd_;
+  rclcpp::Publisher<tpam_interfaces::msg::Cmd>::SharedPtr pub_cmd_;
   rclcpp::TimerBase::SharedPtr timer_;
   std::chrono::steady_clock::time_point t0_;
   double z0_{0.0};

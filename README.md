@@ -10,7 +10,7 @@
   </p>
 
   <p>
- <strong>Thrust-Powered-Manipulation</strong> with Palletrone
+ <strong>Thrust-Powered-Manipulation</strong> with Tpam
   </p>
 </section>
 
@@ -24,7 +24,7 @@
   <pre><code>Tpam_simulator/
 └── src/
 	├── MUJOCO_LOG.TXT
-	├── palletrone_cmd
+	├── tpam_cmd
 	│   ├── CMakeLists.txt
 	│   ├── launch
 	│   │   └── pt_launch.py
@@ -33,20 +33,20 @@
 	│   │   └── teleop_position_node.py
 	│   └── src
 	│       └── position_cmd.cpp
-	├── palletrone_controller
+	├── tpam_controller
 	│   ├── CMakeLists.txt
 	│   ├── package.xml
 	│   └── src
 	│       ├── allocator_controller.cpp
 	│       ├── torque_dob.cpp
 	│       └── wrench_controller.cpp
-	├── palletrone_interfaces
+	├── tpam_interfaces
 	│   ├── CMakeLists.txt
 	│   ├── msg
 	│   │   ├── ArmCmd.msg
 	│   │   ├── Cmd.msg
 	│   │   ├── Input.msg
-	│   │   ├── PalletroneState.msg
+	│   │   ├── TpamState.msg
 	│   │   └── Wrench.msg
 	│   └── package.xml
 	└── plant
@@ -73,7 +73,7 @@
 		│   ├── XL540.stl
 		│   └── XM,H-430_idler.stl
 		├── BODY.stl
-		├── Palletrone.xml
+		├── Tpam.xml
 		├── PROP.stl
 		├── scene.xml
 		└── STLchanger.py

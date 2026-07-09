@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(palletrone_interfaces)
+project(tpam_interfaces)
 
 find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
@@ -7,7 +7,7 @@ find_package(std_msgs REQUIRED)
 
 set(msg_files
   "msg/Input.msg"
-  "msg/PalletroneState.msg"
+  "msg/TpamState.msg"
   "msg/Cmd.msg"
   "msg/Wrench.msg"
   "msg/ArmCmd.msg"

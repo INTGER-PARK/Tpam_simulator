@@ -1,5 +1,5 @@
-<mujoco model="Palletrone">
-  <include file="Palletrone.xml"/>
+<mujoco model="Tpam">
+  <include file="Tpam.xml"/>
 
   <visual>
     <headlight diffuse="0.6 0.6 0.6" ambient="0.1 0.1 0.1" specular="0 0 0"/>

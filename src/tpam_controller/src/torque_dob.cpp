@@ -1,8 +1,8 @@
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/bool.hpp>
 
-#include <palletrone_interfaces/msg/wrench.hpp>
-#include <palletrone_interfaces/msg/palletrone_state.hpp>
+#include <tpam_interfaces/msg/wrench.hpp>
+#include <tpam_interfaces/msg/tpam_state.hpp>
 
 #include <Eigen/Dense>
 #include <atomic>
@@ -18,7 +18,7 @@ class TorqueDOBCore {
 public:
   struct Params {
     float wc = 10.0f;                 // [rad/s] cutoff
-    float Jxx = 0.0768f, Jyy = 0.0871f, Jzz = 0.113f; // [kg*m^2]
+    float Jxx = 0.360091f, Jyy = 0.360702f, Jzz = 0.660702f; // [kg*m^2]
     float limit = 10.0f;              // [N*m] saturation for dhat
   };
 
@@ -33,11 +33,9 @@ public:
   }
 
   void update(float dt,
-              const Eigen::Vector3f& tau_rpy_des,
+              const Eigen::Vector3f& tau_for_q,
               const Eigen::Vector3f& omega_rpy,      // must be SAME frame as tau (body r/p/y axis)
-              Eigen::Vector3f& tau_rpy_tilde,
-              TorqueDhat& torque_dhat,
-              bool compensate_flag)
+              TorqueDhat& torque_dhat)
   {
     const float wc  = std::max(0.0f, p_.wc);
     const float wc2 = wc * wc;
@@ -55,9 +53,6 @@ public:
     // MinvQ output: yM = [J*wc^2, 0] xM  (axis-dependent J)
     const float J[3] = {p_.Jxx, p_.Jyy, p_.Jzz};
 
-    Eigen::Vector3f tau_in = tau_rpy_des;
-    if (compensate_flag) tau_in -= dhat_; // feedback-in-Q path (as in your code)
-
     for (int i = 0; i < 3; ++i) {
       // ---- MinvQ path (input = omega) ----
       Eigen::Vector2f xM_dot = A * xM_.col(i) + B * omega_rpy(i);
@@ -65,15 +60,14 @@ public:
       Eigen::RowVector2f Cm(J[i]*wc2, 0.0f);
       const float yM = (Cm * xM_.col(i))(0);
 
-      // ---- Q path (input = tau_in) ----
-      Eigen::Vector2f xQ_dot = A * xQ_.col(i) + B * tau_in(i);
+      // ---- Q path (input = actual torque command sent to plant) ----
+      Eigen::Vector2f xQ_dot = A * xQ_.col(i) + B * tau_for_q(i);
       xQ_.col(i) += xQ_dot * dt;
       const float yQ = (Cq * xQ_.col(i))(0);
 
       dhat_(i) = saturateFinite(yM - yQ, p_.limit);
     }
 
-    tau_rpy_tilde = tau_rpy_des - dhat_;
     torque_dhat.xyz = dhat_;
   }
 
@@ -97,7 +91,7 @@ public:
     // ---- topics ----
     in_wrench_topic_  = declare_parameter<std::string>("in_wrench_topic",  "/wrench_des");
     out_wrench_topic_ = declare_parameter<std::string>("out_wrench_topic", "/wrench_cmd");
-    state_topic_      = declare_parameter<std::string>("state_topic",      "/palletrone_state");
+    state_topic_      = declare_parameter<std::string>("state_topic",      "/Tpam_state");
     enable_topic_     = declare_parameter<std::string>("enable_topic",     "/dob_enable");
     dhat_topic_       = declare_parameter<std::string>("dhat_topic",       "/dob_dhat");
 
@@ -108,26 +102,26 @@ public:
 
     // ---- behavior ----
     enabled_.store(declare_parameter<bool>("enable_on_start", false));
-    reset_on_enable_ = declare_parameter<bool>("reset_on_enable", true);
-    compensate_flag_ = declare_parameter<bool>("compensate_flag", true);
+    reset_on_enable_ = declare_parameter<bool>("reset_on_enable", false);
+    dhat_rate_limit_ = (float)declare_parameter<double>("dhat_rate_limit", 5.0);
 
     // ---- DOB params ----
     TorqueDOBCore::Params p;
     p.wc    = (float)declare_parameter<double>("wc", 10.0);  // rad/s
-    p.Jxx   = (float)declare_parameter<double>("Jxx", 0.0768);
-    p.Jyy   = (float)declare_parameter<double>("Jyy", 0.0871);
-    p.Jzz   = (float)declare_parameter<double>("Jzz", 0.113);
+    p.Jxx   = (float)declare_parameter<double>("Jxx", 0.360091);
+    p.Jyy   = (float)declare_parameter<double>("Jyy", 0.360702);
+    p.Jzz   = (float)declare_parameter<double>("Jzz", 0.660702);
     p.limit = (float)declare_parameter<double>("limit", 10.0);
     core_.setParams(p);
 
     using std::placeholders::_1;
 
     // state: gyro (w_rpy) is high-rate → SensorDataQoS recommended
-    sub_state_ = create_subscription<palletrone_interfaces::msg::PalletroneState>(
+    sub_state_ = create_subscription<tpam_interfaces::msg::TpamState>(
       state_topic_, rclcpp::SensorDataQoS(),
       std::bind(&TorqueDobNode::onState, this, _1));
 
-    sub_wrench_ = create_subscription<palletrone_interfaces::msg::Wrench>(
+    sub_wrench_ = create_subscription<tpam_interfaces::msg::Wrench>(
       in_wrench_topic_, rclcpp::SystemDefaultsQoS(),
       std::bind(&TorqueDobNode::onWrench, this, _1));
 
@@ -135,11 +129,14 @@ public:
       enable_topic_, rclcpp::SystemDefaultsQoS(),
       std::bind(&TorqueDobNode::onEnable, this, _1));
 
-    pub_wrench_ = create_publisher<palletrone_interfaces::msg::Wrench>(
+    pub_wrench_ = create_publisher<tpam_interfaces::msg::Wrench>(
       out_wrench_topic_, rclcpp::SystemDefaultsQoS());
 
-    pub_dhat_ = create_publisher<palletrone_interfaces::msg::Wrench>(
+    pub_dhat_ = create_publisher<tpam_interfaces::msg::Wrench>(
       dhat_topic_, rclcpp::SystemDefaultsQoS());
+
+    pub_dhat_used_ = create_publisher<tpam_interfaces::msg::Wrench>(
+      "/dob_dhat_used", rclcpp::SystemDefaultsQoS());
 
     RCLCPP_INFO(get_logger(),
       "TorqueDobNode ready.\n  in:  %s\n  out: %s\n  state: %s\n  enable: %s",
@@ -157,17 +154,19 @@ private:
     enabled_.store(next);
 
     if (next) {
+      dhat_used_.setZero();
       if (reset_on_enable_) {
         core_.reset();
         last_time_.reset();
       }
       RCLCPP_WARN(get_logger(), "DOB ENABLED%s", reset_on_enable_ ? " (reset)" : "");
     } else {
+      dhat_used_.setZero();
       RCLCPP_WARN(get_logger(), "DOB DISABLED (bypass)");
     }
   }
 
-  void onState(const palletrone_interfaces::msg::PalletroneState::SharedPtr msg)
+  void onState(const tpam_interfaces::msg::TpamState::SharedPtr msg)
   {
     // Using w_rpy exactly as your wrench_controller does:
     // w_rpy = [roll_rate, pitch_rate, yaw_rate] (same axis order)
@@ -179,7 +178,7 @@ private:
 
   void publishDhat(const Eigen::Vector3f& dhat)
   {
-    palletrone_interfaces::msg::Wrench w;
+    tpam_interfaces::msg::Wrench w;
     w.moment[0] = dhat(0);
     w.moment[1] = dhat(1);
     w.moment[2] = dhat(2);
@@ -189,12 +188,39 @@ private:
     pub_dhat_->publish(w);
   }
 
-  void onWrench(const palletrone_interfaces::msg::Wrench::SharedPtr msg)
+  void publishDhatUsed(const Eigen::Vector3f& dhat_used)
+  {
+    tpam_interfaces::msg::Wrench w;
+    w.moment[0] = dhat_used(0);
+    w.moment[1] = dhat_used(1);
+    w.moment[2] = dhat_used(2);
+    w.force[0] = 0.0f;
+    w.force[1] = 0.0f;
+    w.force[2] = 0.0f;
+    pub_dhat_used_->publish(w);
+  }
+
+  void updateDhatUsed(float dt, const Eigen::Vector3f& dhat_est)
+  {
+    if (!enabled_.load()) {
+      dhat_used_.setZero();
+      return;
+    }
+
+    const float max_step = std::max(0.0f, dhat_rate_limit_) * dt;
+    for (int i = 0; i < 3; ++i) {
+      const float error = dhat_est(i) - dhat_used_(i);
+      dhat_used_(i) += std::clamp(error, -max_step, max_step);
+    }
+  }
+
+  void onWrench(const tpam_interfaces::msg::Wrench::SharedPtr msg)
   {
     // If no gyro yet -> bypass
     if (!have_state_.load()) {
       pub_wrench_->publish(*msg);
       publishDhat(Eigen::Vector3f::Zero());
+      publishDhatUsed(Eigen::Vector3f::Zero());
       return;
     }
 
@@ -212,21 +238,27 @@ private:
     tau_des << (float)msg->moment[0], (float)msg->moment[1], (float)msg->moment[2];
 
     // Output wrench initially = input (force passthrough always)
-    palletrone_interfaces::msg::Wrench out = *msg;
+    tpam_interfaces::msg::Wrench out = *msg;
 
-    if (enabled_.load()) {
-      Eigen::Vector3f tau_tilde;
-      TorqueDhat dhat;
-      core_.update((float)dt, tau_des, omega_, tau_tilde, dhat, compensate_flag_);
+    // Use the compensation value from the previous callback for both plant
+    // output and the Q-filter input. Then update dhat_used_ for the next
+    // callback. This avoids an algebraic loop and prevents enable-step jumps.
+    const bool enabled = enabled_.load();
+    const Eigen::Vector3f dhat_used_now = enabled ? dhat_used_ : Eigen::Vector3f::Zero();
+    const Eigen::Vector3f tau_cmd = tau_des - dhat_used_now;
+    const Eigen::Vector3f tau_for_q = enabled ? tau_cmd : tau_des;
 
-      out.moment[0] = tau_tilde(0);
-      out.moment[1] = tau_tilde(1);
-      out.moment[2] = tau_tilde(2);
+    TorqueDhat dhat;
+    core_.update((float)dt, tau_for_q, omega_, dhat);
 
-      publishDhat(dhat.xyz);
-    } else {
-      publishDhat(Eigen::Vector3f::Zero());
-    }
+    out.moment[0] = tau_cmd(0);
+    out.moment[1] = tau_cmd(1);
+    out.moment[2] = tau_cmd(2);
+
+    publishDhat(dhat.xyz);
+    publishDhatUsed(dhat_used_now);
+
+    updateDhatUsed((float)dt, dhat.xyz);
 
     pub_wrench_->publish(out);
   }
@@ -240,8 +272,9 @@ private:
 
   // core
   TorqueDOBCore core_{TorqueDOBCore::Params{}};
-  bool reset_on_enable_{true};
-  bool compensate_flag_{true};
+  bool reset_on_enable_{false};
+  float dhat_rate_limit_{5.0f};
+  Eigen::Vector3f dhat_used_{Eigen::Vector3f::Zero()};
 
   // state
   std::atomic<bool> have_state_{false};
@@ -251,11 +284,12 @@ private:
   std::atomic<bool> enabled_{false};
 
   // ROS
-  rclcpp::Subscription<palletrone_interfaces::msg::PalletroneState>::SharedPtr sub_state_;
-  rclcpp::Subscription<palletrone_interfaces::msg::Wrench>::SharedPtr sub_wrench_;
+  rclcpp::Subscription<tpam_interfaces::msg::TpamState>::SharedPtr sub_state_;
+  rclcpp::Subscription<tpam_interfaces::msg::Wrench>::SharedPtr sub_wrench_;
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_enable_;
-  rclcpp::Publisher<palletrone_interfaces::msg::Wrench>::SharedPtr pub_wrench_;
-  rclcpp::Publisher<palletrone_interfaces::msg::Wrench>::SharedPtr pub_dhat_;
+  rclcpp::Publisher<tpam_interfaces::msg::Wrench>::SharedPtr pub_wrench_;
+  rclcpp::Publisher<tpam_interfaces::msg::Wrench>::SharedPtr pub_dhat_;
+  rclcpp::Publisher<tpam_interfaces::msg::Wrench>::SharedPtr pub_dhat_used_;
 };
 
 int main(int argc, char** argv)

@@ -1,12 +1,13 @@
 #include <rclcpp/rclcpp.hpp>
-#include <palletrone_interfaces/msg/wrench.hpp>
-#include <palletrone_interfaces/msg/input.hpp>
-#include <palletrone_interfaces/msg/palletrone_state.hpp>
+#include <tpam_interfaces/msg/wrench.hpp>
+#include <tpam_interfaces/msg/input.hpp>
+#include <tpam_interfaces/msg/tpam_state.hpp>
 
 #include <Eigen/Dense>
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <limits>
 #include <vector>
 
 class AllocatorController : public rclcpp::Node 
@@ -15,17 +16,22 @@ public:
   static constexpr double inv_sqrt2   = 1.0 / 1.4142135623730951;
   static constexpr size_t buffer_size = 10;
 
-  static constexpr double lpf_alpha = 0.01;   // LPF for tauz bias
+  static constexpr double lpf_alpha = 0.1;   // LPF for tauz bias
   static constexpr double zeta = 0.02;        // reaction torque coeff [Nm/N]
   static constexpr double r = 0.148492;
   static constexpr double r_z = 0.075;
+  static constexpr double max_motor_thrust = 50.0;
+  static constexpr double max_motor_speed = std::sqrt(max_motor_thrust / zeta);
+  static constexpr double servo_limit_rad = M_PI / 2.0;
+  static constexpr double servo_limit_sin = 1.0;
+  static constexpr double yaw_trim_limit = 2.0;
 
   AllocatorController() : rclcpp::Node("allocator_controller")
   {
-    sub_wrench_ = this->create_subscription<palletrone_interfaces::msg::Wrench>("/wrench_cmd", 10, std::bind(&AllocatorController::onWrench, this, std::placeholders::_1));
-    sub_state_ = this->create_subscription<palletrone_interfaces::msg::PalletroneState>("/palletrone_state", 10, std::bind(&AllocatorController::onState, this, std::placeholders::_1));
+    sub_wrench_ = this->create_subscription<tpam_interfaces::msg::Wrench>("/wrench_cmd", 10, std::bind(&AllocatorController::onWrench, this, std::placeholders::_1));
+    sub_state_ = this->create_subscription<tpam_interfaces::msg::TpamState>("/Tpam_state", 10, std::bind(&AllocatorController::onState, this, std::placeholders::_1));
 
-    pub_input_ = this->create_publisher<palletrone_interfaces::msg::Input>("/input", 10);
+    pub_input_ = this->create_publisher<tpam_interfaces::msg::Input>("/input", 10);
 
     dt_buffer_.assign(buffer_size, 0.01);
     dt_sum_ = 0.01 * static_cast<double>(buffer_size);
@@ -34,7 +40,7 @@ public:
   }
 
 private:
-  void onState(const palletrone_interfaces::msg::PalletroneState::SharedPtr msg) 
+  void onState(const tpam_interfaces::msg::TpamState::SharedPtr msg) 
   {
     C2_mea_(0) = static_cast<double>(msg->servo[0]);
     C2_mea_(1) = static_cast<double>(msg->servo[1]);
@@ -42,7 +48,7 @@ private:
     C2_mea_(3) = static_cast<double>(msg->servo[3]);
   }
 
-  void onWrench(const palletrone_interfaces::msg::Wrench::SharedPtr msg)
+  void onWrench(const tpam_interfaces::msg::Wrench::SharedPtr msg)
   {
     rclcpp::Time current_callback_time = this->now();
     double dt = (last_callback_time_.nanoseconds() > 0) ? (current_callback_time - last_callback_time_).seconds() : 0.01;
@@ -59,28 +65,30 @@ private:
     Wrench << static_cast<double>(msg->moment[0]), static_cast<double>(msg->moment[1]), static_cast<double>(msg->moment[2]),
                static_cast<double>(msg->force[0]),  static_cast<double>(msg->force[1]),  static_cast<double>(msg->force[2]);
 
-    tauz_bar_ = lpf_alpha * Wrench(2) + (1.0 - lpf_alpha) * tauz_bar_;
-    double tauz_r     = Wrench(2) - tauz_bar_;
-    double tauz_r_sat = std::clamp(tauz_r, -2.0, 2.0); // yaw reaction torque limit [Nm]
-    double tauz_t     = tauz_bar_ + (tauz_r - tauz_r_sat);
+    const double tauz_des = Wrench(2);
+    tauz_bar_ = lpf_alpha * tauz_des + (1.0 - lpf_alpha) * tauz_bar_;
 
-    Eigen::Vector4d B1(Wrench(0), Wrench(1), tauz_r_sat, Wrench(5));
-    Eigen::Matrix4d A1 = calc_A1(C2_mea_);
-    {
-      Eigen::FullPivLU<Eigen::Matrix4d> lu_1(A1);
-      if (lu_1.isInvertible()) C1_ = lu_1.solve(B1);
-      else C1_ = (A1.transpose()*A1 + 1e-8*Eigen::Matrix4d::Identity()).ldlt().solve(A1.transpose()*B1);
-    }
+    const double tauz_r = tauz_des - tauz_bar_;
+    const double tauz_r_sat = std::clamp(tauz_r, -yaw_trim_limit, yaw_trim_limit);
+    const double tauz_t = tauz_bar_ + (tauz_r - tauz_r_sat);
 
-    Eigen::Vector4d B2(Wrench(3), Wrench(4), tauz_t, 0.0);
-    Eigen::Matrix4d A2 = calc_A2(C1_, C2_mea_);
-    {
-      Eigen::FullPivLU<Eigen::Matrix4d> lu_2(A2);
-      if (lu_2.isInvertible()) C2_des_ = lu_2.solve(B2);
-      else C2_des_ = (A2.transpose()*A2 + 1e-8*Eigen::Matrix4d::Identity()).ldlt().solve(A2.transpose()*B2);
-    }
+    const Eigen::Vector4d B1(Wrench(0), Wrench(1), tauz_r_sat, Wrench(5));
+    const Eigen::Vector4d B2(Wrench(3), Wrench(4), tauz_t, 0.0);
 
-    palletrone_interfaces::msg::Input out;
+    const Eigen::Matrix4d A1_mea = calc_A1(C2_mea_);
+    const Eigen::Vector4d C1_raw = solve4x4(A1_mea, B1);
+
+    const Eigen::Matrix4d A2 = calc_A2(C1_raw, C2_mea_);
+    const Eigen::Vector4d S_des = solve4x4(A2, B2);
+    C2_des_ = sinToServoAngle(S_des);
+
+    const Eigen::Vector4d S_cmd = S_des.cwiseMax(-servo_limit_sin).cwiseMin(servo_limit_sin);
+    const Eigen::Vector4d C2_cmd = sinToServoAngle(S_cmd).cwiseMax(-servo_limit_rad).cwiseMin(servo_limit_rad);
+
+    const Eigen::Matrix4d A1_cmd = calc_A1(C2_cmd);
+    C1_ = solve4x4(A1_cmd, B1).cwiseMin(max_motor_thrust);
+
+    tpam_interfaces::msg::Input out;
     
     double motor_speed[4];
     motor_speed[0] = std::sqrt(std::max(0.0, C1_(0)/zeta));
@@ -88,9 +96,42 @@ private:
     motor_speed[2] = std::sqrt(std::max(0.0, C1_(2)/zeta));
     motor_speed[3] = std::sqrt(std::max(0.0, C1_(3)/zeta));
 
-    out.u[0] = motor_speed[0]; out.u[1] = motor_speed[1]; out.u[2] = motor_speed[2]; out.u[3] = motor_speed[3];
-    out.u[4] = C2_des_(0); out.u[5] = C2_des_(1); out.u[6] = C2_des_(2); out.u[7] = C2_des_(3);
+    out.u[0] = std::clamp(motor_speed[0], 0.0, max_motor_speed);
+    out.u[1] = std::clamp(motor_speed[1], 0.0, max_motor_speed);
+    out.u[2] = std::clamp(motor_speed[2], 0.0, max_motor_speed);
+    out.u[3] = std::clamp(motor_speed[3], 0.0, max_motor_speed);
+    out.u[4] = C2_cmd(0); out.u[5] = C2_cmd(1); out.u[6] = C2_cmd(2); out.u[7] = C2_cmd(3);
     pub_input_->publish(out);
+  }
+
+  Eigen::Vector4d solve4x4(const Eigen::Matrix4d& A, const Eigen::Vector4d& b) const
+  {
+    Eigen::FullPivLU<Eigen::Matrix4d> lu(A);
+    if (lu.isInvertible()) {
+      return lu.solve(b);
+    }
+    return (A.transpose()*A + 1e-8*Eigen::Matrix4d::Identity()).ldlt().solve(A.transpose()*b);
+  }
+
+  Eigen::Vector4d sinToServoAngle(const Eigen::Vector4d& sin_value) const
+  {
+    Eigen::Vector4d angle;
+    for (int i = 0; i < 4; ++i) {
+      angle(i) = std::asin(std::clamp(sin_value(i), -1.0, 1.0));
+    }
+    return angle;
+  }
+
+  double conditionNumber(const Eigen::Matrix4d& A) const
+  {
+    Eigen::JacobiSVD<Eigen::Matrix4d> svd(A);
+    const auto& singular_values = svd.singularValues();
+    const double sigma_max = singular_values.maxCoeff();
+    const double sigma_min = singular_values.minCoeff();
+    if (sigma_min <= 1e-12) {
+      return std::numeric_limits<double>::infinity();
+    }
+    return sigma_max / sigma_min;
   }
 
   Eigen::Matrix4d calc_A1(const Eigen::Vector4d& C2) 
@@ -160,9 +201,9 @@ private:
     return A2;
   }
 
-  rclcpp::Subscription<palletrone_interfaces::msg::Wrench>::SharedPtr          sub_wrench_;
-  rclcpp::Subscription<palletrone_interfaces::msg::PalletroneState>::SharedPtr sub_state_;
-  rclcpp::Publisher<palletrone_interfaces::msg::Input>::SharedPtr              pub_input_;
+  rclcpp::Subscription<tpam_interfaces::msg::Wrench>::SharedPtr          sub_wrench_;
+  rclcpp::Subscription<tpam_interfaces::msg::TpamState>::SharedPtr sub_state_;
+  rclcpp::Publisher<tpam_interfaces::msg::Input>::SharedPtr              pub_input_;
 
   rclcpp::Time last_callback_time_;
   std::vector<double> dt_buffer_;

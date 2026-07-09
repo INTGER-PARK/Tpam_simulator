@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="3">
-  <name>palletrone_controller</name>
+  <name>tpam_controller</name>
   <version>0.0.1</version>
-  <description>Palletrone controller nodes (wrench_controller, allocator_controller)</description>
+  <description>Tpam controller nodes (wrench_controller, allocator_controller)</description>
 
   <maintainer email="ryung9514@naver.com">ryung</maintainer>
   <license>MIT</license>
@@ -10,7 +10,7 @@
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>rclcpp</depend>
-  <depend>palletrone_interfaces</depend>
+  <depend>tpam_interfaces</depend>
 
   <build_depend>eigen3_cmake_module</build_depend>
   <build_depend>Eigen3</build_depend>

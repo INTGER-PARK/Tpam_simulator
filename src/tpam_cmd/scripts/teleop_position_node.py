@@ -4,7 +4,7 @@ import sys, time, tty, termios, select, math
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Bool
-from palletrone_interfaces.msg import Cmd
+from tpam_interfaces.msg import Cmd
 
 def get_key_nonblock():
     """Non-blocking single key read (no arrows needed here)."""

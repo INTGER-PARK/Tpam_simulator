@@ -9,7 +9,7 @@ from ament_index_python.packages import get_package_share_directory
 import mujoco
 import mujoco.viewer
 
-from palletrone_interfaces.msg import Input, PalletroneState, ArmCmd
+from tpam_interfaces.msg import Input, TpamState, ArmCmd
 
 from std_msgs.msg import Bool
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
@@ -22,8 +22,6 @@ SIG_POS   = 1e-3
 SIG_VEL   = 1e-3
 SIG_GYRO  = 1e-3
 SIG_SERVO = 1e-4
-
-COM_PRINT_PERIOD_S = 1.0
 
 
 def quat_to_rpy(q_wxyz: np.ndarray) -> np.ndarray:
@@ -48,7 +46,7 @@ def rpy_to_R_WB(rpy: np.ndarray) -> np.ndarray:
 
 class PlantRosNode(Node):
     def __init__(self):
-        super().__init__("palletrone_plant")
+        super().__init__("Tpam_plant")
 
         # -------- Load MuJoCo model --------
         pkg_share = get_package_share_directory("plant")
@@ -57,8 +55,6 @@ class PlantRosNode(Node):
         self.model = mujoco.MjModel.from_xml_path(xml_path)
         self.data = mujoco.MjData(self.model)
         self.model.opt.timestep = 1.0 / PHYSICS_HZ
-        self._last_com_print_t = 0.0
-        self.COM_PRINT_PERIOD_S = 1.0
 
         def aid(name: str) -> int:
             idx = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_ACTUATOR, name.encode())
@@ -130,7 +126,7 @@ class PlantRosNode(Node):
 
         self.sub_input = self.create_subscription(Input, "/input", self.on_input, 10)
         self.sub_arm = self.create_subscription(ArmCmd, "/arm_cmd", self.on_arm_cmd, 10)
-        self.pub_state = self.create_publisher(PalletroneState, "/palletrone_state", 10)
+        self.pub_state = self.create_publisher(TpamState, "/Tpam_state", 10)
 
         self._dob_enabled = False #dob publish부분
         qos_latch = QoSProfile(depth=1)
@@ -202,9 +198,6 @@ class PlantRosNode(Node):
                         self.data.ctrl[self.aid_arm[i]] = float(self._arm_u[i])
 
                 while now >= next_step:
-                    left = float(self.data.ctrl[self.aid_thruster_left])
-                    self.data.ctrl[self.aid_thruster_right] = left
-
                     mujoco.mj_step(self.model, self.data)
                     next_step += 1.0 / PHYSICS_HZ
 
@@ -214,14 +207,6 @@ class PlantRosNode(Node):
                     vel_W = self._sensing(self.sid_vel)
                     gyro_I = self._sensing(self.sid_gyro)
                     rpy  = quat_to_rpy(quat_W)
-
-                    if (now - self._last_com_print_t) >= self.COM_PRINT_PERIOD_S:
-                        com_W = np.array(self.data.subtree_com[0], dtype=float) #MuJoCo 내부 계산값을 읽어서 com 얻기
-                        R_WB = rpy_to_R_WB(rpy)
-                        pc_B = R_WB.T @ (com_W - pos_W)
-                        pcx, pcy, pcz = float(pc_B[0]), float(pc_B[1]), float(pc_B[2])
-                        self.get_logger().info(f"pc_B = [{pcx:.4f}, {pcy:.4f}, {pcz:.4f}]")
-                        self._last_com_print_t = now
                     	
                     servo = np.array([self._sensing(sid)[0] for sid in self.sid_servo_ang], dtype=float)
 
@@ -239,7 +224,7 @@ class PlantRosNode(Node):
                     self.prev_linvel_W = vel_W.copy()
                     self.prev_gyro_I = gyro_I.copy()
 
-                    msg = PalletroneState()
+                    msg = TpamState()
                     msg.pos = pos_W.tolist()
                     msg.vel = vel_W.tolist()
                     msg.acc = acc_W.tolist()

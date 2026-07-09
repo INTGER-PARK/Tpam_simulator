@@ -1,7 +1,7 @@
 #include <rclcpp/rclcpp.hpp>
-#include <palletrone_interfaces/msg/cmd.hpp>
-#include <palletrone_interfaces/msg/palletrone_state.hpp>
-#include <palletrone_interfaces/msg/wrench.hpp>
+#include <tpam_interfaces/msg/cmd.hpp>
+#include <tpam_interfaces/msg/tpam_state.hpp>
+#include <tpam_interfaces/msg/wrench.hpp>
 
 #include <Eigen/Dense>
 #include <algorithm>
@@ -15,13 +15,13 @@ public:
   {
     // ===================== Gains =====================
     // Position PID (I-gain 유지!)
-    const double KP_POS[3] = {30.0, 30.0, 30.0};
+    const double KP_POS[3] = {40.0, 40.0, 20.0};
     const double KI_POS[3] = {0.20, 0.20, 0.05};
-    const double KD_POS[3] = {5.00, 5.00, 1.50};
+    const double KD_POS[3] = {6.00, 6.00, 2.00};
     const double I_MIN_POS = -5.0, I_MAX_POS = 5.0, OUT_MIN_POS = -200.0, OUT_MAX_POS = 200.0;
 
     // Attitude PD (기본 안정적으로 I는 0)
-    const double KP_ATT[3] = {50.0, 50.0, 30.0};
+    const double KP_ATT[3] = {70.0, 50.0, 50.0};
     const double KI_ATT[3] = {0.0,  0.0,  0.0};   // <-- I 끔 (원하면 다시 켜줄게)
     const double KD_ATT[3] = {10.0, 10.0, 10.0};
     const double I_MIN_ATT = -1.0, I_MAX_ATT = 1.0, OUT_MIN_ATT = -20.0, OUT_MAX_ATT = 20.0;
@@ -36,7 +36,7 @@ public:
       {
         if (dt <= 0.0) dt = 1e-3;
         const double e  = ref - cur;
-        const double de = -dcur;              // ref_dot=0 가정
+        const double de = -dcur;              // assume ref_dot=0 
         iacc += ki * e * dt;                  // iacc는 I-term (ki 포함)
         iacc = std::clamp(iacc, i_min, i_max);
         double u = kp*e + iacc + kd*de;
@@ -55,23 +55,23 @@ public:
     pid_att_[2] = init_pid(KP_ATT[2], KI_ATT[2], KD_ATT[2], I_MIN_ATT, I_MAX_ATT, OUT_MIN_ATT, OUT_MAX_ATT);
 
     // ===================== ROS I/O =====================
-    sub_cmd_ = this->create_subscription<palletrone_interfaces::msg::Cmd>(
+    sub_cmd_ = this->create_subscription<tpam_interfaces::msg::Cmd>(
       "/cmd", rclcpp::SystemDefaultsQoS(),
       std::bind(&WrenchController::onCmd, this, std::placeholders::_1));
 
     // state는 고주기 → SensorDataQoS
-    sub_state_ = this->create_subscription<palletrone_interfaces::msg::PalletroneState>(
-      "/palletrone_state", rclcpp::SensorDataQoS(),
+    sub_state_ = this->create_subscription<tpam_interfaces::msg::TpamState>(
+      "/Tpam_state", rclcpp::SensorDataQoS(),
       std::bind(&WrenchController::onState, this, std::placeholders::_1));
 
     // DOB 중간 삽입용: wrench_des로 publish
-    pub_wrench_ = this->create_publisher<palletrone_interfaces::msg::Wrench>(
+    pub_wrench_ = this->create_publisher<tpam_interfaces::msg::Wrench>(
       "/wrench_des", rclcpp::SystemDefaultsQoS());
 
     last_time_ = this->now();
 
     RCLCPP_INFO(this->get_logger(),
-      "wrench_controller ready. pub=/wrench_des, sub=/cmd,/palletrone_state (SensorDataQoS)");
+      "wrench_controller ready. pub=/wrench_des, sub=/cmd,/Tpam_state (SensorDataQoS)");
   }
 
 private:
@@ -80,7 +80,7 @@ private:
     return std::atan2(std::sin(ref - cur), std::cos(ref - cur));
   }
 
-  void onCmd(const palletrone_interfaces::msg::Cmd::SharedPtr msg)
+  void onCmd(const tpam_interfaces::msg::Cmd::SharedPtr msg)
   {
     pos_cmd_ << (double)msg->pos_cmd[0], (double)msg->pos_cmd[1], (double)msg->pos_cmd[2];
     rpy_cmd_ << (double)msg->rpy_cmd[0], (double)msg->rpy_cmd[1], (double)msg->rpy_cmd[2];
@@ -100,7 +100,7 @@ private:
     have_cmd_ = true;
   }
 
-  void onState(const palletrone_interfaces::msg::PalletroneState::SharedPtr msg)
+  void onState(const tpam_interfaces::msg::TpamState::SharedPtr msg)
   {
     // ---------- read state ----------
     pos_    << (double)msg->pos[0],   (double)msg->pos[1],   (double)msg->pos[2];
@@ -114,6 +114,10 @@ private:
     if (!(dt > 0.0) || dt > 0.2) dt = 1.0/400.0;
 
     have_state_ = true;
+
+    if (!have_cmd_) {
+      return;
+    }
 
     // ---------- hold latch (state 최초 1회) ----------
     if (!have_hold_) {
@@ -178,7 +182,7 @@ private:
     M_body.z() = pid_att_[2](yaw_ref_equiv,   rpy_.z(), w_body_.z(), dt);
 
     // ---------- publish wrench_des ----------
-    palletrone_interfaces::msg::Wrench w;
+    tpam_interfaces::msg::Wrench w;
     w.moment[0] = (float)M_body.x();
     w.moment[1] = (float)M_body.y();
     w.moment[2] = (float)M_body.z();
@@ -190,9 +194,9 @@ private:
   }
 
   // ROS
-  rclcpp::Subscription<palletrone_interfaces::msg::Cmd>::SharedPtr sub_cmd_;
-  rclcpp::Subscription<palletrone_interfaces::msg::PalletroneState>::SharedPtr sub_state_;
-  rclcpp::Publisher<palletrone_interfaces::msg::Wrench>::SharedPtr pub_wrench_;
+  rclcpp::Subscription<tpam_interfaces::msg::Cmd>::SharedPtr sub_cmd_;
+  rclcpp::Subscription<tpam_interfaces::msg::TpamState>::SharedPtr sub_state_;
+  rclcpp::Publisher<tpam_interfaces::msg::Wrench>::SharedPtr pub_wrench_;
   rclcpp::Time last_time_;
 
   // command/state
@@ -217,7 +221,7 @@ private:
   std::function<double(double,double,double,double)> pid_att_[3];
 
   // params
-  double mass_{5.718};
+  double mass_{5}; //real mass in xml = 5.180801241434462
   double grav_{9.81};
 
   bool have_state_{false};
